@@ -1,8 +1,10 @@
 const canvas = document.createElement('canvas');
-const size = 400;
+const height = 800;
+const width = 400;
+const wallWidth = 40;
 
-canvas.width=size;
-canvas.height=size;
+canvas.width=width;
+canvas.height=height;
 
 document.getElementById('root').appendChild(canvas);
 const ctx = canvas.getContext('2d');
@@ -20,21 +22,23 @@ const map = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0],
 ];
 
-const focalLength = 10;
+const player = {p: { x: 5 * wallWidth, y: 8 * wallWidth}, d: { x: 0, y: -1} };
 
-const player = {p: { x: 5, y: 6}, d: { x: 0, y: -1} };
+const minimapHeight = 400;
 
-function draw() {
+function drawMinimap() {
   ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, size, size);
+  ctx.fillRect(0, 0, width, minimapHeight);
   ctx.fillStyle = 'black';
 
   let focalLength = 100;
   let viewPlaneLength = 200;
   let negativeVP = viewPlaneLength / 2 * -1;
   let VP = viewPlaneLength/2;
-  let playerX = player.p.x * 40;
-  let playerY = player.p.y * 40;
+  let playerX = player.p.x;
+  let playerY = player.p.y;
+  let playerSize = 10;
+  let resolution = 10;
 
   const perp = { x: player.d.y, y: -1 * player.d.x };
   let start = { 
@@ -52,10 +56,9 @@ function draw() {
   ctx.lineTo(end.x, end.y);
   ctx.stroke();
 
-  for(let column = 0; column < 10; column ++) {
-
-    let x = start.x + perp.x * viewPlaneLength / 10 * column;
-    let y = start.y + perp.y * viewPlaneLength / 10 * column;
+  for(let column = 0; column < resolution; column ++) {
+    let x = start.x + perp.x * viewPlaneLength / resolution * column;
+    let y = start.y + perp.y * viewPlaneLength / resolution * column;
     
     ctx.beginPath();
     ctx.moveTo(playerX, playerY);
@@ -63,17 +66,25 @@ function draw() {
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.moveTo(0, column * size / 10);
-    ctx.lineTo(size, column * size / 10);
+    ctx.moveTo(0, column/resolution * minimapHeight);
+    ctx.lineTo(width, column/resolution * minimapHeight);
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.moveTo(column * size / 10, 0);
-    ctx.lineTo( column * size / 10, size);
+    ctx.moveTo(column/resolution * width, 0);
+    ctx.lineTo(column/resolution * width, minimapHeight);
     ctx.stroke();
   }
 
-  ctx.fillRect(player.p.x * size/10 - 5, player.p.y * size/10 - 5, 10, 10);
+  for(let row = 0;row<map.length;row++) {
+    for(let column = 0;column< map[row].length;column++) {
+      if (map[row][column] === 1) {
+        ctx.fillRect(column * wallWidth, row * wallWidth, wallWidth, wallWidth);
+      }
+    }
+  }
+
+  ctx.fillRect(player.p.x - playerSize/2, player.p.y - playerSize/2, playerSize, playerSize);
 }
 
 function castRay(vector, origin) {
@@ -83,9 +94,14 @@ function castRay(vector, origin) {
   let nextX = (1 + x) / vector.x;
 }
 
+function draw3D() {
+  
+}
+
 //  const c = Math.abs(w - h); -> top left to bot right gradient
 let t = 0;
 window.setInterval(() => {
- draw();
+ drawMinimap();
+ draw3D();
 }, 1000);
 
