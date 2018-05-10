@@ -22,7 +22,7 @@ const map = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0],
 ];
 
-const player = {p: { x: 5 * wallWidth, y: 8 * wallWidth}, d: { x: 0, y: -1} };
+const player = {p: { x: 4 * wallWidth - wallWidth/2, y: 8 * wallWidth}, d: { x: 0, y: -1} };
 
 const minimapHeight = 400;
 
@@ -41,30 +41,36 @@ function drawMinimap() {
   let resolution = 10;
 
   const perp = { x: player.d.y, y: -1 * player.d.x };
-  let start = { 
-      x: playerX + player.d.x * focalLength + perp.x * negativeVP,
-      y: playerY + player.d.y * focalLength + perp.y * negativeVP 
-    };
   
-    let end = {
+  let start = {
     x: playerX + player.d.x * focalLength + perp.x * VP,
     y: playerY + player.d.y * focalLength + perp.y * VP
   };
+  let end = { 
+      x: playerX + player.d.x * focalLength + perp.x * negativeVP,
+      y: playerY + player.d.y * focalLength + perp.y * negativeVP 
+    };
 
   ctx.beginPath();
   ctx.moveTo(start.x, start.y);
   ctx.lineTo(end.x, end.y);
   ctx.stroke();
 
-  for(let column = 0; column < resolution; column ++) {
+  for(let column = 0; column < resolution; column++) {
     let x = start.x + perp.x * viewPlaneLength / resolution * column;
     let y = start.y + perp.y * viewPlaneLength / resolution * column;
     
-    ctx.beginPath();
-    ctx.moveTo(playerX, playerY);
-    ctx.lineTo(x, y);
-    ctx.stroke();
+    if (column === 0) {
+      ctx.beginPath();
+      ctx.moveTo(playerX, playerY);
+      ctx.lineTo(x, y);
+      ctx.stroke();
 
+      const newRayPoint = (castRay(normalisedVector(subVector({ x, y }, player.p)), player.p));
+      
+      ctx.fillRect(newRayPoint.x, newRayPoint.y, 5, 5);
+    }
+ 
     ctx.beginPath();
     ctx.moveTo(0, column/resolution * minimapHeight);
     ctx.lineTo(width, column/resolution * minimapHeight);
@@ -91,11 +97,55 @@ function castRay(vector, origin) {
   let x = origin.x;
   let y = origin.y;
 
-  let nextX = (1 + x) / vector.x;
+  let positionInCellX = x - wallWidth*Math.floor(x / wallWidth);
+
+  if (positionInCellX === 0) {
+    positionInCellX = 40;
+  }
+  
+  let xDistance = Infinity;
+  if (vector.x !== 0) {
+    xDistance = Math.abs(positionInCellX / vector.x);
+  }
+  
+  let positionInCellY = y - wallWidth*Math.floor(y / wallWidth);
+  
+  if (positionInCellY === 0) {
+    positionInCellY = 40;
+  }
+  
+  let yDistance = Infinity;
+  if (vector.y !== 0) {
+    yDistance = Math.abs(positionInCellY / vector.y);
+  }
+
+  if (Math.abs(xDistance) < Math.abs(yDistance)) {
+    const newX = origin.x + positionInCellX * Math.sign(vector.x);
+    const multiplier = xDistance;
+    const newY = origin.y + multiplier * vector.y;
+
+    return { x: newX, y: newY };
+  } else {
+    const newY = origin.y +  positionInCellY * Math.sign(vector.y);
+    const multiplier = yDistance;
+    const newX = origin.x + multiplier * vector.x;
+    return { x: newX, y: newY };
+  }
 }
 
 function draw3D() {
   
+}
+
+function subVector(v1, v2) {
+  return { x: v1.x - v2.x, y: v1.y - v2.y };
+}
+
+function normalisedVector(v) {
+  const x = v.x, y = v.y;
+  const mag = Math.sqrt(x*x + y*y);
+
+  return { x: x/mag, y: y/mag};
 }
 
 //  const c = Math.abs(w - h); -> top left to bot right gradient
