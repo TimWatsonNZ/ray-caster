@@ -28,7 +28,7 @@ const minimapHeight = 400;
 
 const focalLength = 150;
 const viewPlaneLength = 200;
-const resolution = 50;
+const resolution = 100;
 let walls = [];
 
 document.addEventListener('keydown', (event) => {
@@ -41,10 +41,10 @@ document.addEventListener('keydown', (event) => {
     player.d.x += 0.1;
   }
   if (keyName === 'ArrowUp') {
-    player.p = addVector(player.p, multVector(player.d, 0.5));
+    player.p = addVector(player.p, multVector(player.d, 1));
   }
   if (keyName === 'ArrowDown') {
-    player.p = addVector(player.p, multVector(player.d, -0.5));
+    player.p = addVector(player.p, multVector(player.d, -1));
   }
 });
 
@@ -202,7 +202,7 @@ function castRay(vector, origin, destination, playerViewVector, debugCtx) {
 }
 
 function viewDistance(origin, finalPoint, viewVector) {
-  const distanceFromOrigin = distance(origin, finalPoint);
+ return distance(origin, finalPoint);
   const distanceFocalPlane = distance(finalPoint, viewVector);
 
   return Math.sqrt(distanceFromOrigin*distanceFromOrigin - distanceFocalPlane*distanceFocalPlane);
@@ -245,10 +245,13 @@ function draw3D() {
   gtx.fillStyle = 'rgb(255,255,255)';
   
   gtx.fillRect(0, 0, width, height);
-  gtx.fillStyle = 'rgb(0,0,0)';
+  const wallColor = 128;
   for (let i = 0; i < walls.length; i ++) {
     if (walls[i].distance !== Infinity) {
-      gtx.fillRect(i*drawWidth, height / 2.5 - wallWidth/2, drawWidth, 400/walls[i].distance * 40);
+      const distance = 400/walls[i].distance;
+      const distanceColor = 255/distance;
+      gtx.fillStyle = `rgb(${distanceColor},${distanceColor},${distanceColor})`;
+      gtx.fillRect(i*drawWidth, height / 2.5 - wallWidth/2, drawWidth, distance * 10);
     }
   }
 }
