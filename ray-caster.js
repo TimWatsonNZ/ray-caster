@@ -26,10 +26,27 @@ const player = {p: { x: 4 * wallWidth - wallWidth/2, y: 8 * wallWidth}, d: { x: 
 
 const minimapHeight = 400;
 
-const focalLength = 100;
+const focalLength = 150;
 const viewPlaneLength = 200;
 const resolution = 50;
 let walls = [];
+
+document.addEventListener('keydown', (event) => {
+  const keyName = event.key;
+
+  if (keyName === 'ArrowLeft') {
+    player.d.x -= 0.1;
+  }
+  if (keyName === 'ArrowRight') {
+    player.d.x += 0.1;
+  }
+  if (keyName === 'ArrowUp') {
+    player.p = addVector(player.p, multVector(player.d, 0.5));
+  }
+  if (keyName === 'ArrowDown') {
+    player.p = addVector(player.p, multVector(player.d, -0.5));
+  }
+});
 
 function drawMinimap() {
   ctx.fillStyle = 'white';
@@ -83,7 +100,7 @@ function drawMinimap() {
     ctx.lineTo(x, y);
     ctx.stroke();
 
-    if (column === 1) {
+    if (column === 4) {
       console.log();
     }
     const rayPoint = castRay(normalisedVector(subVector({ x, y }, player.p)), player.p, { x, y }, playerViewVector);
@@ -112,7 +129,7 @@ function cellHasWall(position, isX) {
   return map[x][y] === 1;
 }
 
-function castRay(vector, origin, destination, playerViewVector, ctx) {
+function castRay(vector, origin, destination, playerViewVector, debugCtx) {
   let finalPoint = { x: origin.x, y: origin.y };
   let maxDistance = distance(origin, destination);
   const halfWallWidth = wallWidth/2;
@@ -120,6 +137,10 @@ function castRay(vector, origin, destination, playerViewVector, ctx) {
     let x = finalPoint.x;
     let y = finalPoint.y;
     
+    if (x < 0 || x > width || y < 0 || y > width) {
+      return { finalPoint, distance: Infinity };
+    }
+
     let positionInCellX = 0;
     if (vector.x > 0) {
       positionInCellX = wallWidth - (x % wallWidth);
@@ -136,7 +157,7 @@ function castRay(vector, origin, destination, playerViewVector, ctx) {
       xDistance = Math.abs(positionInCellX / vector.x);
     }
     
-    let positionInCellY = halfWallWidth - Math.abs( (y % wallWidth) - halfWallWidth)
+    let positionInCellY = (y % wallWidth);
     
     if (positionInCellY === 0) {
       positionInCellY = wallWidth;
@@ -173,8 +194,8 @@ function castRay(vector, origin, destination, playerViewVector, ctx) {
         return { finalPoint, distance: viewDistance(origin, finalPoint, playerViewVector) };
       }
     }
-    if(ctx) {
-      ctx.strokeRect(finalPoint.x, finalPoint.y, 4, 4);
+    if(debugCtx) {
+      debugCtx.strokeRect(finalPoint.x, finalPoint.y, 4, 4);
     }
   }
   return { finalPoint, distance: Infinity };
@@ -221,6 +242,10 @@ const gtx = gameCanvas.getContext('2d');
 
 function draw3D() {
   const drawWidth = width/resolution;
+  gtx.fillStyle = 'rgb(255,255,255)';
+  
+  gtx.fillRect(0, 0, width, height);
+  gtx.fillStyle = 'rgb(0,0,0)';
   for (let i = 0; i < walls.length; i ++) {
     if (walls[i].distance !== Infinity) {
       gtx.fillRect(i*drawWidth, height / 2.5 - wallWidth/2, drawWidth, 400/walls[i].distance * 40);
@@ -233,5 +258,5 @@ let t = 0;
 window.setInterval(() => {
  drawMinimap();
  draw3D();
-}, 1000);
+}, 250);
 
