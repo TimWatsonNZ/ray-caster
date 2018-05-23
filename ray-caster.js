@@ -13,22 +13,22 @@ const map = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+  [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+  [1, 0, 0, 1, 0, 0, 1, 0, 1, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ];
 
-const player = {p: { x: 4 * wallWidth - wallWidth/2, y: 8 * wallWidth}, d: { x: 0, y: -1} };
+const player = {p: { x: 4 * wallWidth - wallWidth/2, y: 7 * wallWidth}, d: { x: 0, y: -1} };
 
 const minimapHeight = 400;
 
 const focalLength = 150;
 const viewPlaneLength = 200;
-const resolution = 100;
+const resolution = 200;
 let walls = [];
 
 document.addEventListener('keydown', (event) => {
@@ -36,9 +36,11 @@ document.addEventListener('keydown', (event) => {
 
   if (keyName === 'ArrowLeft') {
     player.d.x -= 0.1;
+    player.d = normalisedVector(player.d);
   }
   if (keyName === 'ArrowRight') {
     player.d.x += 0.1;
+    player.d = normalisedVector(player.d);
   }
   if (keyName === 'ArrowUp') {
     player.p = addVector(player.p, multVector(player.d, 1));
@@ -136,10 +138,6 @@ function castRay(vector, origin, destination, playerViewVector, debugCtx) {
   while (distance(origin, finalPoint) < maxDistance) {
     let x = finalPoint.x;
     let y = finalPoint.y;
-    
-    if (x < 0 || x > width || y < 0 || y > width) {
-      return { finalPoint, distance: Infinity };
-    }
 
     let positionInCellX = 0;
     if (vector.x > 0) {
@@ -181,6 +179,10 @@ function castRay(vector, origin, destination, playerViewVector, debugCtx) {
 
       finalPoint = { x: newX, y: newY };
 
+      if (newX < 0 || newX > width || newY < 0 || newY > width) {
+        return { finalPoint, distance: Infinity };
+      }
+      
       if (cellHasWall(finalPoint, true)) {
         return { finalPoint, distance: viewDistance(origin, finalPoint, playerViewVector) };
       }
@@ -246,12 +248,15 @@ function draw3D() {
   
   gtx.fillRect(0, 0, width, height);
   const wallColor = 128;
+  const straightRay = walls[walls.length/2];
   for (let i = 0; i < walls.length; i ++) {
     if (walls[i].distance !== Infinity) {
-      const distance = 400/walls[i].distance;
-      const distanceColor = 255/distance;
+
+      const wallHeight = height * 40 / (walls[i].distance+1);
+      const distanceColor = walls[i].distance;
+
       gtx.fillStyle = `rgb(${distanceColor},${distanceColor},${distanceColor})`;
-      gtx.fillRect(i*drawWidth, height / 2.5 - wallWidth/2, drawWidth, distance * 10);
+      gtx.fillRect(i*drawWidth, height/2 - wallHeight/2, drawWidth, wallHeight);
     }
   }
 }
