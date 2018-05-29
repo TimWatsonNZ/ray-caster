@@ -28,8 +28,10 @@ const minimapHeight = 400;
 
 const focalLength = 150;
 const viewPlaneLength = 200;
-const resolution = 200;
+const resolution = 100;
 let walls = [];
+let negativeVP = viewPlaneLength / 2 * -1;
+let VP = viewPlaneLength/2;
 
 document.addEventListener('keydown', (event) => {
   const keyName = event.key;
@@ -51,12 +53,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 function drawMinimap() {
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, width, minimapHeight);
-  ctx.fillStyle = 'black';
-
-  let negativeVP = viewPlaneLength / 2 * -1;
-  let VP = viewPlaneLength/2;
+  
   let playerX = player.p.x;
   let playerY = player.p.y;
   let playerSize = 5;
@@ -73,13 +70,51 @@ function drawMinimap() {
     x: playerX + player.d.x * focalLength + perp.x * VP,
     y: playerY + player.d.y * focalLength + perp.y * VP
   };
+
+  walls = [];
+
+  const rays = [];
+  clearCanvas(ctx, width, minimapHeight);
+  
+  for(let column = 0; column <= resolution; column++) {
+    let x = start.x + perp.x * viewPlaneLength / resolution * column;
+    let y = start.y + perp.y * viewPlaneLength / resolution * column;
+    
+    ctx.beginPath();
+    ctx.moveTo(playerX, playerY);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+
+    const ray = createRay(player.p, {x, y});
+    ray.final = castRay(ray, playerViewVector);
+    
+    ctx.fillRect(ray.final.finalPoint.x, ray.final.finalPoint.y, 5, 5);
+    walls.push(ray);
+  }
+
+  drawViewPlane(start, end, ctx);
+  drawWalls(ctx);
+  drawPlayer(player, playerSize);
+}
+
+function createRay(start, end) {
+  return { vector: normalisedVector(subVector(end, start)), start, end };
+}
+
+function clearCanvas(ctx, width, height) {
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = 'black';
+}
+
+function drawViewPlane(start, end, ctx) {
   ctx.beginPath();
   ctx.moveTo(start.x, start.y);
   ctx.lineTo(end.x, end.y);
   ctx.stroke();
+}
 
-  walls = [];
-
+function drawWalls(ctx) {
   for(let row = 0;row < map.length;row++) {
     for(let column = 0;column< map[row].length;column++) {
       if (map[row][column] === 1) {
@@ -92,50 +127,45 @@ function drawMinimap() {
       }
     }
   }
+}
 
-  for(let column = 0; column <= resolution; column++) {
-    let x = start.x + perp.x * viewPlaneLength / resolution * column;
-    let y = start.y + perp.y * viewPlaneLength / resolution * column;
-    
-    ctx.beginPath();
-    ctx.moveTo(playerX, playerY);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-
-    if (column === 4) {
-      console.log();
-    }
-    const rayPoint = castRay(normalisedVector(subVector({ x, y }, player.p)), player.p, { x, y }, playerViewVector);
-    
-    ctx.fillRect(rayPoint.finalPoint.x, rayPoint.finalPoint.y, 5, 5);
-    walls.push(rayPoint);
-  }
-
+function drawPlayer(player, playerSize) {
   ctx.fillRect(player.p.x - playerSize/2, player.p.y - playerSize/2, playerSize, playerSize);
 }
 
-function cellHasWall(position, isX) {
+function cellHasWall(position, isX, testInWall) {
   const x = Math.floor(position.x/wallWidth);
   const y = Math.floor(position.y/wallWidth);
 
   if (isX) {
     if (x > 0) {
-      return map[y][x] === 1 || map[y][x - 1] === 1;
+      if (testInWall) {
+        return map[y][x] === 1;
+      } else {
+        return map[y][x] === 1 || map[y][x - 1] === 1;
+      }
+     
     }
   } else {
     if (y > 0) {
-      return map[y][x] === 1 || map[y-1][x] === 1;
+      if (testInWall) {
+        return map[y][x] === 1;
+      } else {
+        return map[y][x] === 1 || map[y-1][x] === 1;
+      }
     }
   }
 
   return map[x][y] === 1;
 }
 
-function castRay(vector, origin, destination, playerViewVector, debugCtx) {
-  let finalPoint = { x: origin.x, y: origin.y };
-  let maxDistance = distance(origin, destination);
+function castRay(ray, playerViewVector, debugCtx) {
+  const { vector, start, end } = {...ray};
+  let finalPoint = { x: start.x, y: start.y };
+  let maxDistance = distance(start, end);
   const halfWallWidth = wallWidth/2;
-  while (distance(origin, finalPoint) < maxDistance) {
+
+  while (distance(start, finalPoint) -1 <= maxDistance) {
     let x = finalPoint.x;
     let y = finalPoint.y;
 
@@ -178,13 +208,24 @@ function castRay(vector, origin, destination, playerViewVector, debugCtx) {
       const newY = finalPoint.y + multiplier * vector.y;
 
       finalPoint = { x: newX, y: newY };
+      const finalDistance = viewDistance(start, finalPoint, playerViewVector);
 
       if (newX < 0 || newX > width || newY < 0 || newY > width) {
         return { finalPoint, distance: Infinity };
       }
       
-      if (cellHasWall(finalPoint, true)) {
-        return { finalPoint, distance: viewDistance(origin, finalPoint, playerViewVector) };
+      if (finalDistance > maxDistance) {
+        finalPoint = subVector(finalPoint, multVector(vector, finalDistance - maxDistance));
+
+        if (cellHasWall(finalPoint, true, true)) {
+          return { finalPoint, distance: Math.min(viewDistance(start, finalPoint, playerViewVector), maxDistance) };
+        } else {
+          return { finalPoint, distance: Infinity };
+        }
+      } else {
+        if (cellHasWall(finalPoint, true)) {
+          return { finalPoint, distance: Math.min(viewDistance(start, finalPoint, playerViewVector), maxDistance) };
+        }
       }
     } else {
       const newY = finalPoint.y + positionInCellY * Math.sign(vector.y);
@@ -192,8 +233,24 @@ function castRay(vector, origin, destination, playerViewVector, debugCtx) {
       const newX = finalPoint.x + multiplier * vector.x;
       finalPoint = { x: newX, y: newY };
 
-      if (cellHasWall(finalPoint, false)) {
-        return { finalPoint, distance: viewDistance(origin, finalPoint, playerViewVector) };
+      const finalDistance = viewDistance(start, finalPoint, playerViewVector);
+      if (newX < 0 || newX > width || newY < 0 || newY > width) {
+        return { finalPoint, distance: Infinity };
+      }
+
+      if (finalDistance > maxDistance) {
+        finalPoint = subVector(finalPoint, multVector(vector, finalDistance - maxDistance));
+
+
+        if (cellHasWall(finalPoint, false, true)) {
+          return { finalPoint, distance: Math.min(viewDistance(start, finalPoint, playerViewVector), maxDistance) };
+        } else {
+          return { finalPoint, distance: Infinity };
+        }
+      } else {
+        if (cellHasWall(finalPoint, false)) {
+          return { finalPoint, distance: Math.min(viewDistance(start, finalPoint, playerViewVector), maxDistance) };
+        }
       }
     }
     if(debugCtx) {
@@ -248,12 +305,12 @@ function draw3D() {
   
   gtx.fillRect(0, 0, width, height);
   const wallColor = 128;
-  const straightRay = walls[walls.length/2];
+  
   for (let i = 0; i < walls.length; i ++) {
-    if (walls[i].distance !== Infinity) {
+    if (walls[i].final.distance !== Infinity) {
 
-      const wallHeight = height * 40 / (walls[i].distance+1);
-      const distanceColor = walls[i].distance;
+      const wallHeight = height * 40 / (walls[i].final.distance+1);
+      const distanceColor = walls[i].final.distance;
 
       gtx.fillStyle = `rgb(${distanceColor},${distanceColor},${distanceColor})`;
       gtx.fillRect(i*drawWidth, height/2 - wallHeight/2, drawWidth, wallHeight);
